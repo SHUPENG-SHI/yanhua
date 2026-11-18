@@ -1,4 +1,6 @@
 /* ================= 基础 ================= */
+[hidden] { display: none !important; }
+
 :root {
   --red: #b81c22;
   --red-dark: #8f1218;

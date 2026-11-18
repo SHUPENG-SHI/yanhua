@@ -28,8 +28,12 @@
 
   // ---------------- 登录 ----------------
   function enterApp() {
-    $('loginView').hidden = true;
-    $('appView').hidden = false;
+    var login = $('loginView');
+    var app = $('appView');
+    login.hidden = true;
+    login.style.display = 'none';
+    app.hidden = false;
+    app.style.display = 'block';
     $('modeTip').textContent = Store.isDemo()
       ? '演示模式 · 数据存在本机浏览器'
       : '云端模式 · 数据实时同步';
