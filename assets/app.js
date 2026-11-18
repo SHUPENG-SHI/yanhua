@@ -3,7 +3,7 @@
   'use strict';
 
   var U = window.Util;
-  var state = { products: [], cart: new Map(), keyword: '', giftOpen: {} };
+  var state = { products: [], cart: new Map(), keyword: '', giftOpen: {}, cached: false };
 
   var dom = {
     products: document.getElementById('products'),
@@ -102,11 +102,11 @@
     var list = state.products.filter(function (p) {
       return !kw || p.name.toLowerCase().indexOf(kw) >= 0 || String(p.seq) === kw;
     });
-    if (!list.length) {
-      dom.products.innerHTML = '<div class="empty">没有找到相关品类</div>';
-      return;
-    }
-    dom.products.innerHTML = list.map(cardHtml).join('');
+    var notice = state.cached
+      ? '<div class="empty" style="padding:6px 0 14px;color:#b26a00">网络不稳定，当前显示的是上次加载的品类和价格<br>' +
+        '<button class="btn small ghost" id="retryBtn" type="button" style="margin-top:8px">重新加载</button></div>'
+      : '';
+    dom.products.innerHTML = notice + (list.length ? list.map(cardHtml).join('') : '<div class="empty">没有找到相关品类</div>');
   }
 
   function computeTotals() {
@@ -327,18 +327,57 @@
   });
 
   // ---------- 初始化 ----------
+  function retry(fn, times, delay) {
+    return fn().catch(function (err) {
+      if (times <= 0) throw err;
+      return new Promise(function (resolve) { setTimeout(resolve, delay); })
+        .then(function () { return retry(fn, times - 1, delay * 2); });
+    });
+  }
+
   function loadProducts() {
-    return Store.getProducts().then(function (list) {
+    return retry(function () { return Store.getProducts(); }, 2, 800).then(function (list) {
       state.products = list.map(function (p) { return Object.assign({}, p, { price: Number(p.price) }); });
+      state.cached = false;
+      try { localStorage.setItem('fw_products_cache', JSON.stringify(list)); } catch (e) { /* 忽略 */ }
       renderProducts();
       syncUI();
     });
   }
 
+  function readCache() {
+    try {
+      var c = JSON.parse(localStorage.getItem('fw_products_cache') || 'null');
+      return Array.isArray(c) && c.length ? c : null;
+    } catch (e) { return null; }
+  }
+
+  function showLoadError(err) {
+    console.error(err);
+    var cached = readCache();
+    if (cached) {
+      state.products = cached.map(function (p) { return Object.assign({}, p, { price: Number(p.price) }); });
+      state.cached = true;
+      renderProducts();
+      syncUI();
+      return;
+    }
+    var msg = (err && err.message) || String(err);
+    var friendly = /fetch|network|timeout|load failed/i.test(msg)
+      ? '网络连不上服务器，可能是手机网络不稳定。点下面「重新加载」，或在微信里点右上角改用系统浏览器打开。'
+      : msg;
+    dom.products.innerHTML = '<div class="empty">加载失败：' + U.esc(friendly) +
+      '<br><button class="btn small ghost" id="retryBtn" type="button" style="margin-top:12px">重新加载</button></div>';
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'retryBtn') {
+      dom.products.innerHTML = '<div class="empty">加载中…</div>';
+      loadProducts().catch(showLoadError);
+    }
+  });
+
   if (Store.isDemo()) dom.demoTip.hidden = false;
 
-  Store.ready().then(loadProducts).catch(function (err) {
-    console.error(err);
-    dom.products.innerHTML = '<div class="empty">加载失败：' + U.esc(err.message || err) + '</div>';
-  });
+  Store.ready().then(loadProducts).catch(showLoadError);
 })();
