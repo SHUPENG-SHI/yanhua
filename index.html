@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b81c22">
+<title>烟花登记 · 自助下单</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<div class="demo-tip" id="demoTip" hidden>演示模式：数据只保存在当前浏览器，配置 Supabase 后自动切换为云端</div>
+
+<header class="topbar">
+  <a class="admin-link" href="admin.html">管理后台</a>
+  <div class="brand">烟花登记</div>
+  <div class="sub">选择品类 · 实时计价 · 提交给老板</div>
+</header>
+
+<main class="page">
+  <section class="toolbar">
+    <input id="search" class="search" type="search" placeholder="搜索品类，如 加特林 / 仙女棒">
+    <div class="picked-count" id="pickedCount">已选 0 件</div>
+  </section>
+
+  <section id="products" class="products"></section>
+
+  <section class="checkout" id="checkout">
+    <h2>确认订单</h2>
+    <div class="picked-list" id="pickedList"></div>
+
+    <div class="form-row">
+      <label for="discount">优惠减免</label>
+      <div class="input-wrap">
+        <span class="prefix">¥</span>
+        <input id="discount" type="number" min="0" step="1" value="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="hint" id="discountHint">优惠金额超过总价，请核实</div>
+
+    <div class="form-row">
+      <label for="name">姓名 <span class="req">*</span></label>
+      <input id="name" type="text" maxlength="20" placeholder="必填，用于导出文件名">
+    </div>
+
+    <div class="form-row">
+      <label for="note">备注</label>
+      <input id="note" type="text" maxlength="100" placeholder="选填，如自提 / 送到某处">
+    </div>
+
+    <div class="summary">
+      <div class="line"><span>总价格</span><b id="sumSubtotal">¥0</b></div>
+      <div class="line"><span>优惠减免</span><b id="sumDiscount">¥0</b></div>
+      <div class="final"><span>最终价格</span><b id="sumFinal">¥0</b></div>
+    </div>
+
+    <button class="btn primary big" id="submitBtn">提交订单</button>
+  </section>
+</main>
+
+<div class="stickybar">
+  <div class="info">
+    <div class="cnt" id="barCount">已选 0 件</div>
+    <div class="total" id="barTotal">¥0</div>
+  </div>
+  <button class="go" id="goCheckout">去结算</button>
+</div>
+
+<div class="mask" id="successMask" hidden>
+  <div class="dialog">
+    <div class="ok-mark">✓</div>
+    <h3>提交成功</h3>
+    <p>已发送给管理员，请稍候核对</p>
+    <div class="big-price" id="okPrice">¥0</div>
+    <div class="rows">
+      <div><span>订单号</span><b id="okId">-</b></div>
+      <div><span>姓名</span><b id="okName">-</b></div>
+      <div><span>提交时间</span><b id="okTime">-</b></div>
+    </div>
+    <button class="btn primary big" id="okClose">继续下单</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/config.js"></script>
+<script src="assets/util.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
