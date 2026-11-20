@@ -20,6 +20,7 @@
 <main class="page">
   <section class="toolbar">
     <input id="search" class="search" type="search" placeholder="搜索品类，如 加特林 / 仙女棒">
+    <button class="btn small ghost" id="pasteBtn" type="button">粘贴清单</button>
     <div class="picked-count" id="pickedCount">已选 0 件</div>
   </section>
 
@@ -64,6 +65,20 @@
     <div class="total" id="barTotal">¥0</div>
   </div>
   <button class="go" id="goCheckout">去结算</button>
+</div>
+
+<div class="mask" id="pasteMask" hidden>
+  <div class="dialog paste-dialog">
+    <h3>粘贴客户清单</h3>
+    <p>把客户发来的清单整段粘进来，自动识别编号和数量</p>
+    <textarea id="pasteText" class="paste-text" placeholder="例如：&#10;08  小金鱼 ×1  ¥15&#10;16  飞毛腿 ×2  ¥15"></textarea>
+    <div class="paste-result" id="pasteResult" hidden></div>
+    <div class="paste-hint">清单只识别商品和数量，<b>赠送数量</b>和<b>优惠减免</b>请在填入后手动设置</div>
+    <div class="paste-foot">
+      <button class="btn ghost" id="pasteCancel" type="button">取消</button>
+      <button class="btn primary" id="pasteApply" type="button" disabled>填入</button>
+    </div>
+  </div>
 </div>
 
 <div class="mask" id="successMask" hidden>

@@ -29,7 +29,13 @@
     okTime: document.getElementById('okTime'),
     okClose: document.getElementById('okClose'),
     toast: document.getElementById('toast'),
-    demoTip: document.getElementById('demoTip')
+    demoTip: document.getElementById('demoTip'),
+    pasteBtn: document.getElementById('pasteBtn'),
+    pasteMask: document.getElementById('pasteMask'),
+    pasteText: document.getElementById('pasteText'),
+    pasteResult: document.getElementById('pasteResult'),
+    pasteCancel: document.getElementById('pasteCancel'),
+    pasteApply: document.getElementById('pasteApply')
   };
 
   function toast(msg) {
@@ -185,6 +191,171 @@
     var over = t.discount > t.subtotal;
     dom.discountHint.classList.toggle('show', over);
   }
+
+  // ---------- 粘贴清单识别 ----------
+  var pasteState = { rows: [] };
+
+  var RE_SEQ    = /^(\d{1,3})\s*[.、:：]?\s+/;      // 行首编号，如「08  」
+  var RE_QTY    = /[×xX*]\s*(\d+)/;                 // ×1 / x1 / *2
+  var RE_QTY2   = /(\d+)\s*(?:个|件|盒|包|支|条|把|根|筒|发|份|扎)/;
+  var RE_PRICE  = /[¥￥]\s*(\d+(?:\.\d+)?)/;
+  var RE_PRICE2 = /(\d+(?:\.\d+)?)\s*元/;
+
+  function parseLine(raw) {
+    var line = String(raw).replace(/\u3000/g, ' ').replace(/[ \t]+/g, ' ').trim();
+    if (!line) return null;
+    if (/^(烟花清单|合计|总计|共\s*\d)/.test(line)) return null;
+    if (/^[-=_—·\s]+$/.test(line)) return null;
+
+    var m, seq = null, qty = null, listPrice = null;
+
+    m = line.match(RE_SEQ);
+    if (m) seq = parseInt(m[1], 10);
+
+    m = line.match(RE_QTY) || line.match(RE_QTY2);
+    if (m) qty = parseInt(m[1], 10);
+
+    m = line.match(RE_PRICE) || line.match(RE_PRICE2);
+    if (m) listPrice = parseFloat(m[1]);
+
+    var name = line;
+    if (seq !== null) name = name.replace(RE_SEQ, '');
+    name = name
+      .replace(/[×xX*]\s*\d+\s*(?:个|件|盒|包|支|条|把|根|筒|发|份|扎)?/g, ' ')
+      .replace(/[¥￥]\s*\d+(?:\.\d+)?/g, ' ')
+      .replace(/\d+(?:\.\d+)?\s*元/g, ' ')
+      .replace(/[|｜]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!name && seq === null) return null;
+    return { raw: line, seq: seq, name: name, qty: qty, listPrice: listPrice };
+  }
+
+  function matchProduct(item) {
+    var list = state.products;
+    if (item.seq !== null) {
+      var bySeq = list.filter(function (p) { return Number(p.seq) === item.seq; });
+      if (bySeq.length === 1) return bySeq[0];
+    }
+    if (item.name) {
+      var exact = list.filter(function (p) { return p.name === item.name; });
+      if (exact.length === 1) return exact[0];
+      var part = list.filter(function (p) {
+        return p.name.indexOf(item.name) >= 0 || item.name.indexOf(p.name) >= 0;
+      });
+      if (part.length === 1) return part[0];
+    }
+    return null;
+  }
+
+  function analyzePaste() {
+    var rows = [];
+    String(dom.pasteText.value || '').split(/\r?\n/).forEach(function (raw) {
+      var item = parseLine(raw);
+      if (!item) return;
+
+      var p = matchProduct(item);
+      var qty = item.qty;
+      var level = 'ok', note = '';
+
+      if (!p) {
+        level = 'miss';
+        note = '没有匹配到商品，请手动填写';
+      } else {
+        if (!qty || qty <= 0) {
+          qty = 1;
+          level = 'warn';
+          note = '未识别到数量，按 1 件填入';
+        }
+        if (item.listPrice !== null && Math.abs(item.listPrice - Number(p.price)) > 0.001) {
+          if (level !== 'miss') level = 'warn';
+          note = (note ? note + '；' : '') + '清单价 ¥' + item.listPrice + '，按当前价 ' + U.money(p.price) + ' 计算';
+        }
+      }
+      rows.push({ item: item, product: p, qty: qty, level: level, note: note });
+    });
+    pasteState.rows = rows;
+    renderPasteResult();
+  }
+
+  function renderPasteResult() {
+    var rows = pasteState.rows;
+    if (!rows.length) {
+      dom.pasteResult.innerHTML = '';
+      dom.pasteResult.hidden = true;
+      dom.pasteApply.disabled = true;
+      dom.pasteApply.textContent = '填入';
+      return;
+    }
+
+    var okCount = 0, html = '';
+    rows.forEach(function (r) {
+      if (r.product) okCount++;
+      var label = r.product
+        ? r.product.seq + '  ' + r.product.name
+        : (r.item.seq !== null ? r.item.seq + '  ' : '') + (r.item.name || r.item.raw);
+      var right = r.product ? ('×' + r.qty + '  ' + U.money(r.product.price * r.qty)) : '未匹配';
+      var mark = r.level === 'ok' ? '✓' : (r.level === 'warn' ? '!' : '✕');
+      html +=
+        '<div class="paste-row ' + r.level + '">' +
+          '<span class="pi">' + mark + '</span>' +
+          '<span class="pn">' + U.esc(label) + '</span>' +
+          '<span class="pq">' + U.esc(right) + '</span>' +
+          (r.note ? '<span class="pnote">' + U.esc(r.note) + '</span>' : '') +
+        '</div>';
+    });
+
+    dom.pasteResult.innerHTML = html;
+    dom.pasteResult.hidden = false;
+    dom.pasteApply.disabled = okCount === 0;
+    dom.pasteApply.textContent = '填入 ' + okCount + ' 项';
+  }
+
+  function applyPaste() {
+    var matched = pasteState.rows.filter(function (r) { return r.product; });
+    if (!matched.length) return;
+
+    state.cart.clear();
+    state.giftOpen = {};
+
+    var total = 0;
+    matched.forEach(function (r) {
+      var c = cartOf(r.product.id);
+      c.qty = r.qty;
+      c.gift = 0;
+      total += r.qty;
+    });
+
+    dom.pasteMask.hidden = true;
+    renderProducts();
+    syncUI();
+
+    var card = dom.products.querySelector('.card[data-id="' + matched[0].product.id + '"]');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    var miss = pasteState.rows.length - matched.length;
+    toast('已填入 ' + matched.length + ' 项，共 ' + total + ' 件' + (miss ? '，' + miss + ' 行未匹配' : '') + '；赠送和优惠请手动填写');
+  }
+
+  dom.pasteBtn.addEventListener('click', function () {
+    dom.pasteText.value = '';
+    pasteState.rows = [];
+    renderPasteResult();
+    dom.pasteMask.hidden = false;
+    dom.pasteText.focus();
+  });
+  dom.pasteText.addEventListener('input', analyzePaste);
+  dom.pasteText.addEventListener('paste', function () {
+    setTimeout(analyzePaste, 0);
+  });
+  dom.pasteCancel.addEventListener('click', function () {
+    dom.pasteMask.hidden = true;
+  });
+  dom.pasteMask.addEventListener('click', function (e) {
+    if (e.target === dom.pasteMask) dom.pasteMask.hidden = true;
+  });
+  dom.pasteApply.addEventListener('click', applyPaste);
 
   // ---------- 事件 ----------
   dom.products.addEventListener('click', function (e) {
