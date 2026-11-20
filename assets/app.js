@@ -15,6 +15,8 @@
     name: document.getElementById('name'),
     note: document.getElementById('note'),
     sumSubtotal: document.getElementById('sumSubtotal'),
+    sumGift: document.getElementById('sumGift'),
+    sumGiftRow: document.getElementById('sumGiftRow'),
     sumDiscount: document.getElementById('sumDiscount'),
     sumFinal: document.getElementById('sumFinal'),
     submitBtn: document.getElementById('submitBtn'),
@@ -116,27 +118,28 @@
   }
 
   function computeTotals() {
-    var count = 0, sub = 0;
+    var count = 0, sub = 0, gift = 0;
     state.cart.forEach(function (c, id) {
       var p = get(id);
       if (!p) return;
       count += c.qty + c.gift;
+      gift += c.gift;
       sub += p.price * c.qty;
     });
     var discount = Math.max(0, parseFloat(dom.discount.value) || 0);
-    return { count: count, subtotal: Math.round(sub * 100) / 100, discount: discount, final: Math.round((sub - discount) * 100) / 100 };
+    return { count: count, gift: gift, subtotal: Math.round(sub * 100) / 100, discount: discount, final: Math.round((sub - discount) * 100) / 100 };
   }
 
   function renderPicked() {
     var rows = [];
     state.cart.forEach(function (c, id) {
       var p = get(id);
-      if (!p || c.qty <= 0) return;
+      if (!p || (c.qty <= 0 && c.gift <= 0)) return;
       rows.push(
-        '<div class="picked-item" data-id="' + p.id + '">' +
-          '<span class="nm">' + U.esc(p.name) + ' <span class="qty-txt">×' + c.qty +
-          (c.gift > 0 ? ' <span class="badge gift">赠送 ×' + c.gift + '</span>' : '') + '</span></span>' +
-          '<span class="amt">' + U.money(p.price * c.qty) + '</span>' +
+        '<div class="picked-item' + (c.qty <= 0 ? ' only-gift' : '') + '" data-id="' + p.id + '">' +
+          '<span class="nm">' + U.esc(p.name) + ' <span class="qty-txt">' + (c.qty > 0 ? '×' + c.qty : '') +
+          (c.gift > 0 ? ' <span class="gift-badge">赠送 ' + c.gift + U.esc(unitShort(p.unit)) + '</span>' : '') + '</span></span>' +
+          '<span class="amt">' + (c.qty > 0 ? U.money(p.price * c.qty) : '¥0') + '</span>' +
           '<button type="button" class="del" data-del="' + p.id + '">×</button>' +
         '</div>'
       );
@@ -181,6 +184,8 @@
     syncWarnings();
     renderPicked();
 
+    dom.sumGiftRow.hidden = t.gift <= 0;
+    dom.sumGift.textContent = t.gift + ' 件（不收费）';
     dom.sumSubtotal.textContent = U.money(t.subtotal);
     dom.sumDiscount.textContent = '-' + U.money(t.discount);
     dom.sumFinal.textContent = U.money(t.final);

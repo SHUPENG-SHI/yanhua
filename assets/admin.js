@@ -149,9 +149,10 @@
         ops += '<button class="btn small ghost" data-act="adjust" data-id="' + o.id + '">调整</button>' +
           '<button class="btn small danger" data-act="cancel" data-id="' + o.id + '">取消</button>';
       }
+      var hasGift = (o.items || []).some(function (it) { return Number(it.gift_qty) > 0; });
       return '<tr>' +
         '<td class="num">' + U.fmtTime(o.created_at) + '</td>' +
-        '<td class="strong">' + U.esc(o.customer_name) + '</td>' +
+        '<td class="strong">' + U.esc(o.customer_name) + (hasGift ? '<span class="gift-mini">含赠送</span>' : '') + '</td>' +
         '<td class="num">' + (o.items_count || 0) + '</td>' +
         '<td class="num">' + U.num(o.subtotal) + '</td>' +
         '<td class="num">' + U.num(o.discount) + '</td>' +
@@ -198,11 +199,19 @@
   // ---------------- 详情 ----------------
   function showDetail(o) {
     var s = STATUS[o.status] || STATUS.pending;
+    var giftTotal = 0, giftCost = 0;
+    (o.items || []).forEach(function (it) {
+      var g = Number(it.gift_qty) || 0;
+      giftTotal += g;
+      giftCost += g * (Number(it.cost) || 0);
+    });
     var kv = '<div class="kv">' +
       '<div>姓名：<b>' + U.esc(o.customer_name) + '</b></div>' +
       '<div>提交时间：<b>' + U.fmtTime(o.created_at) + '</b></div>' +
       '<div>状态：<b>' + s.txt + '</b></div>' +
       '<div>件数：<b>' + (o.items_count || 0) + '</b></div>' +
+      (giftTotal ? '<div>赠送件数：<b class="gift-num">' + giftTotal + ' 件（不收钱，计成本）</b></div>' +
+        '<div>赠送成本：<b class="gift-num">' + U.money(giftCost) + '</b></div>' : '') +
       '<div>总价格：<b>' + U.money(o.subtotal) + '</b></div>' +
       '<div>优惠减免：<b>' + U.money(o.discount) + '</b></div>' +
       '<div>最终价格：<b>' + U.money(o.final_price) + '</b></div>' +
@@ -216,13 +225,15 @@
       return '<tr><td>' + (i + 1) + '</td><td>' + U.esc(it.product_name) + '</td>' +
         '<td>' + U.esc(it.unit) + '</td><td class="num">' + U.num(it.price) + '</td>' +
         '<td class="num">' + U.num(it.cost) + '</td><td class="num">' + it.qty + '</td>' +
-        '<td class="num">' + it.gift_qty + '</td>' +
+        '<td class="num">' + (it.gift_qty > 0 ? '<span class="gift-mark">赠 ' + it.gift_qty + '</span>' : '—') + '</td>' +
+        '<td class="num">' + (it.gift_qty > 0 ? U.num(it.cost * it.gift_qty) : '—') + '</td>' +
         '<td class="num">' + U.num(it.price * it.qty) + '</td></tr>';
     }).join('');
 
-    var table = '<div class="table-scroll"><table class="data" style="min-width:560px">' +
-      '<thead><tr><th>#</th><th>商品</th><th>单位</th><th>单价</th><th>成本</th><th>数量</th><th>赠送</th><th>小计</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
+    var table = '<div class="table-scroll"><table class="data" style="min-width:640px">' +
+      '<thead><tr><th>#</th><th>商品</th><th>单位</th><th>单价</th><th>成本</th><th>数量</th><th>赠送</th><th>赠送成本</th><th>销售小计</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>' +
+      (giftTotal ? '<div style="font-size:12.5px;color:#8b8378;margin-top:6px">赠送按成本价计入总成本，不向客户收费</div>' : '');
 
     openModal('订单详情', kv + table,
       '<button class="btn ghost" data-close="1" type="button">关闭</button>' +
@@ -343,6 +354,15 @@
     rows.push(['最终价格', '', '', '', '', '', '', o.final_price, '', '最终成本', '', o.total_cost]);
     rows.push(['运费', '', '', '', '', '', '', o.shipping, '', '', '', '']);
     rows.push(['最终利润', '', '', '', '', '', '', o.profit, '', '', '', '']);
+    var giftTotal = 0, giftCost = 0;
+    o.items.forEach(function (it) {
+      var g = Number(it.gift_qty) || 0;
+      giftTotal += g;
+      giftCost += g * (Number(it.cost) || 0);
+    });
+    if (giftTotal > 0) {
+      rows.push(['赠送合计', giftTotal + ' 件（不收费）', '', '', '', '', '', '', '', '赠送成本', '', U.round2(giftCost)]);
+    }
     if (o.note) {
       rows.push([]);
       rows.push(['备注', o.note]);

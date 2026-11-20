@@ -538,6 +538,23 @@ a { color: var(--red); text-decoration: none; }
   color: #8a6320;
 }
 .paste-hint b { font-weight: 600; }
+
+/* ---------- 赠送标注（销售端 + 后台共用） ---------- */
+.gift-badge, .gift-mark, .gift-mini {
+  display: inline-block;
+  background: var(--gold);
+  color: #fff;
+  border-radius: 4px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.gift-badge { padding: 2px 7px; font-size: 12px; margin-left: 4px; }
+.gift-mark { padding: 2px 7px; font-size: 12px; }
+.gift-mini { padding: 1px 5px; font-size: 11px; margin-left: 6px; border-radius: 3px; }
+.gift-num { color: var(--gold); }
+.picked-item.only-gift .nm { color: var(--gold); }
+.picked-item.only-gift .amt { color: var(--gold); }
+#sumGiftRow b { color: var(--gold); }
 .paste-foot {
   display: flex;
   gap: 10px;
